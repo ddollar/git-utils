@@ -31,7 +31,7 @@ if [ "${CURRENT_BRANCH}" != "" ]; then
     REMOTE_BRANCH="${CURRENT_BRANCH}"
   fi
   
-  if [ "${SILENCE}" != "yes"]; then
+  if [ "${SILENCE}" != "yes" ]; then
     echo "To: ${REMOTE_REPOSITORY}/${REMOTE_BRANCH}"
     echo ""
   fi
