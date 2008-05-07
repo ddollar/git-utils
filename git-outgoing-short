@@ -1,2 +1,2 @@
 #!/bin/sh
-GIT_LOG_ARGUMENTS="--pretty=oneline --abbrev-commit --abbrev=4" ./git-outgoing $1 $2
+GIT_LOG_ARGUMENTS="--pretty=oneline --abbrev-commit --abbrev=4" git-outgoing $1 $2
