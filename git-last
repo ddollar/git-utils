@@ -1,0 +1,3 @@
+#!/bin/sh
+REVISIONS=${1}
+git log -n ${REVISIONS}
