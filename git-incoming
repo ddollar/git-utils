@@ -35,5 +35,5 @@ if [ "${CURRENT_BRANCH}" != "" ]; then
   echo ""
   
   #git remote update &>/dev/null
-  git log ..${REMOTE_REPOSITORY}/${REMOTE_BRANCH}
+  git log ..${REMOTE_REPOSITORY}/${REMOTE_BRANCH} ${GIT_LOG_ARGUMENTS}
 fi
