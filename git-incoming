@@ -31,8 +31,10 @@ if [ "${CURRENT_BRANCH}" != "" ]; then
     REMOTE_BRANCH="${CURRENT_BRANCH}"
   fi
   
-  echo "From: ${REMOTE_REPOSITORY}/${REMOTE_BRANCH}"
-  echo ""
+  if [ "${SILENCE}" != "yes" ]; then
+    echo "From: ${REMOTE_REPOSITORY}/${REMOTE_BRANCH}"
+    echo ""
+  fi
   
   #git remote update &>/dev/null
   git log ..${REMOTE_REPOSITORY}/${REMOTE_BRANCH} ${GIT_LOG_ARGUMENTS}
