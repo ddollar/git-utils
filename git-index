@@ -1,2 +1,2 @@
 #!/bin/sh
-git diff --cachd $*
+git diff --cached $*
