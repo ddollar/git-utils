@@ -1,0 +1,46 @@
+#!/usr/bin/env ruby -wKU
+
+require 'rubygems'
+require 'term/ansicolor'
+
+class String
+  include Term::ANSIColor
+  
+  def color_nonzero(color)
+    (self.to_i == 0) ? self : self.send(color)
+  end
+end
+
+include Term::ANSIColor
+
+current = nil
+
+branches = `git branch`.split("\n").inject([]) do |array, line|
+  branch  =  line[2..-1].strip
+  current =  branch if line[0..0] == '*'
+  array   << branch
+end
+
+longest = branches.map { |b| b.length }.max
+
+branches.sort.each do |branch|
+  remote = `git config branch.#{branch}.remote`.chomp
+  
+  status = if remote.strip != ''
+    remote_branch = `git config branch.#{branch}.merge`.chomp.split('/').last
+    outgoing = `git log #{remote}/#{remote_branch}..#{branch} --pretty=oneline | wc -l`.strip
+    incoming = `git log #{branch}..#{remote}/#{remote_branch} --pretty=oneline | wc -l`.strip
+
+    "o:#{outgoing.color_nonzero(:green)} i:#{incoming.color_nonzero(:red)}"
+  else
+    "not tracking"
+  end
+  
+  next if status == 'not tracking'
+  
+  branch_display = (current == branch) ? branch.white.bold : branch
+  
+  padding = longest - branch.length
+  
+  puts " %s %s  %s" % [ (' ' * padding), branch_display, status ]
+end
