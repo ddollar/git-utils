@@ -31,7 +31,7 @@ branches.sort.each do |branch|
     outgoing = `git log #{remote}/#{remote_branch}..#{branch} --pretty=oneline | wc -l`.strip
     incoming = `git log #{branch}..#{remote}/#{remote_branch} --pretty=oneline | wc -l`.strip
 
-    "o:#{outgoing.color_nonzero(:green)} i:#{incoming.color_nonzero(:red)}"
+    "o:#{outgoing.color_nonzero(:green)}  i:#{incoming.color_nonzero(:red)}"
   else
     "not tracking"
   end
@@ -42,5 +42,5 @@ branches.sort.each do |branch|
   
   padding = longest - branch.length
   
-  puts " %s %s  %s" % [ (' ' * padding), branch_display, status ]
+  puts " %s %s   %s" % [ (' ' * padding), branch_display, status ]
 end
