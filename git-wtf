@@ -1,7 +1,10 @@
 #!/usr/bin/env ruby
 
+require 'pp'
+$debug = false
+
 require 'yaml'
-CONFIG_FN = ".git-wtfrc"
+CONFIG_FILENAME = ".git-wtf"
 
 class Numeric; def pluralize s; "#{to_s} #{s}" + (self != 1 ? "s" : "") end end
 
@@ -10,153 +13,124 @@ def die s
   exit(-1)
 end
 
-$long = ARGV.delete("--long") || ARGV.delete("-l")
+def run_command(command)
+  output = IO.popen(command, 'r').read
 
-## find config file
-$config = { "versions" => [], "ignore" => [], "max_commits" => 5 }.merge begin
-  p = File.expand_path "."
-  fn = while true
-    fn = File.join p, CONFIG_FN
-    break fn if File.exist? fn
-    pp = File.expand_path File.join(p, "..")
-    break if p == pp
-    p = pp
+  if $debug
+    puts "-- begin run_command --"
+    puts "executing: #{command}"
+    puts "output:"
+    puts output
+    puts "-- end run_command --"
   end
 
-  if fn
-    YAML::load_file fn
-  else
-    #$stderr.puts "Warning: no config file found. Specify version branches by creating <project_root>/#{CONFIG_FN}"
-    remotes = `git config --get-regexp ^remote\\.`.split("\n")
-    die "I can't find your gits" if remotes.empty?
-    repo = remotes.first =~ /^remote\.(\S+?)\./ ? $1 : "origin"
-    { "versions" => %w(master next edge).map { |b| "#{repo}/#{b}" } }
-  end
+  output
 end
 
-## the set of commits in 'to' that aren't in 'from'.
-## if empty, 'to' has been merged into 'from'.
 def commits_between from, to
-  if $long
-    `git log --pretty=format:"- %s [%h] (%ae; %ar)" #{from}..#{to}`
-  else
-    `git log --pretty=format:"- %s [%h]" #{from}..#{to}`
-  end.split(/[\r\n]+/)
+  run_command(%{ git log --pretty=format:"- [%h] %s" #{from}..#{to} }).split(/[\r\n]+/).map { |s| s.gsub(/- /, '') }
 end
 
-def show_commits commits, label, prefix=""
-  if commits.empty?
-    puts "#{prefix}#{label}: none"
-  else
-    puts "#{prefix}#{label}:" if label
-    commits[0 ... $config["max_commits"]].each { |c| puts "#{prefix}#{c}" }
-    if commits.size > $config["max_commits"]
-      puts "#{prefix}... and #{commits.size - $config["max_commits"]} more."
-    end
-  end
+begin
+  $config = YAML::load_file(CONFIG_FILENAME)
+  raise 'invalid configuration format' unless $config["version_branches"].length > 0
+rescue
+  puts <<-CONFIG.gsub(/^  /, '')
+  Create a .git-wtf in your git repository directory that looks like:
+  --
+  version_branches:
+    - stable-2.0
+  CONFIG
+  exit 1
 end
 
-def ahead_behind_string ahead, behind
-  [ahead.empty? ? nil : "#{ahead.size.pluralize 'commit'} ahead",
-   behind.empty? ? nil : "#{behind.size.pluralize 'commit'} behind"].
-   compact.join("; ")
+current_branch = File.read(File.join('.git', 'HEAD')).chomp.split('/').last
+
+branches = Dir[File.join('.git', 'refs', 'heads', '*')].inject({}) do |hash, ref|
+  name    = File.basename(ref)
+  rev     = File.read(ref).chomp
+  current = (name == current_branch)
+  version = $config["version_branches"].include?(name)
+  remote  = run_command("git config --get branch.#{name}.remote").chomp
+  merge   = run_command("git config --get branch.#{name}.merge").chomp.split('/').last
+
+  hash.update({ name => {
+    :name    => name,
+    :rev     => rev,
+    :current => current,
+    :version => version,
+    :parent  => {
+      :remote => remote,
+      :branch => merge
+    }
+  }})
 end
 
-def show b, all_branches
-  puts "Local branch: #{b[:local_branch]}"
-  both = false
-
-  if b[:remote_branch]
-    pushc = commits_between b[:remote_branch], b[:local_branch]
-    pullc = commits_between b[:local_branch], b[:remote_branch]
-
-    both = !pushc.empty? && !pullc.empty?
-    if pushc.empty?
-      puts "[x] in sync with remote"
-    else
-      action = both ? "push after rebase / merge" : "push"
-      puts "[ ] NOT in sync with remote (needs #{action})"
-      show_commits pushc, nil, " "
-    end
-
-    puts "\nRemote branch: #{b[:remote_branch]} (#{b[:remote_url]})"
-
-    if pullc.empty?
-      puts "[x] in sync with local"
-    else
-      action = pushc.empty? ? "merge" : "rebase / merge"
-      puts "[ ] NOT in sync with local (needs #{action})"
-      show_commits pullc, nil, " "
-
-      both = !pushc.empty? && !pullc.empty?
-    end
-  end
-
-  vbs, fbs = all_branches.partition { |name, br| $config["versions"].include? br[:remote_branch] }
-  if $config["versions"].include? b[:remote_branch]
-    puts "\nFeature branches:" unless fbs.empty?
-    fbs.each do |name, br|
-      remote_ahead = commits_between b[:remote_branch], br[:local_branch]
-      local_ahead = commits_between b[:local_branch], br[:local_branch]
-      if local_ahead.empty? && remote_ahead.empty?
-        puts "[x] #{br[:name]} is merged in"
-      elsif local_ahead.empty?
-        puts "(x) #{br[:name]} merged in (only locally)"
-      else
-        behind = commits_between br[:local_branch], b[:remote_branch]
-        puts "[ ] #{br[:name]} is NOT merged in (#{ahead_behind_string local_ahead, behind})"
-        show_commits local_ahead, nil, "   "
-      end
-    end
-  else
-    puts "\nVersion branches:" unless vbs.empty? # unlikely
-    vbs.each do |v, br|
-      ahead = commits_between v, b[:local_branch]
-      if ahead.empty?
-        puts "[x] merged into #{v}"
-      else
-        behind = commits_between b[:local_branch], v
-        puts "[ ] NOT merged into #{v}"
-      end
-    end
-  end
-
-  puts "\nWARNING: local and remote branches have diverged. A merge will occur unless you rebase." if both
-end
-
-branches = `git show-ref`.inject({}) do |hash, l|
-  sha1, ref = l.chomp.split " refs/"
-  next hash if $config["ignore"].member? ref
-  next hash unless ref =~ /^heads\/(.+)/
-  name = $1
-  hash[name] = { :name => name, :local_branch => ref }
+remotes = Dir[File.join('.git', 'refs', 'remotes', '*', '*')].inject({}) do |hash, ref|
+  ref_parts = ref.split('/')
+  name   = ref_parts.pop
+  remote = ref_parts.pop
+  rev    = File.read(ref).chomp
+  hash[remote] ||= {}
+  hash[remote][name] = { :name => name, :remote => remote, :rev => rev }
   hash
 end
 
-remotes = `git config --get-regexp ^remote\.\*\.url`.inject({}) do |hash, l|
-  l =~ /^remote\.(.+?)\.url (.+)$/ or next hash
-  hash[$1] ||= $2
-  hash
-end
-
-`git config --get-regexp ^branch\.`.each do |l|
-  case l
-  when /branch\.(.*?)\.remote (.+)/
-    branches[$1] ||= {}
-    branches[$1][:remote] = $2
-    branches[$1][:remote_url] = remotes[$2]
-  when /branch\.(.*?)\.merge ((refs\/)?heads\/)?(.+)/
-    branches[$1] ||= {}
-    branches[$1][:remote_mergepoint] = $4
+branches.each do |name, branch|
+  branches[name][:remote] = begin
+    parent = branch[:parent]
+    remote = parent[:remote] == '.' ? branches : remotes[parent[:remote]]
+    remote[parent[:branch]]
   end
 end
 
-branches.each { |k, v| v[:remote_branch] = "#{v[:remote]}/#{v[:remote_mergepoint]}" if v[:remote] && v[:remote_mergepoint] }
+repo = {
+  :master   => branches.values.detect { |b| b[:name] == 'master' },
+  :current  => branches.values.detect { |b| b[:current] },
+  :versions => branches.values.select { |b| b[:version] },
+  :features => branches.values.select { |b| !(b[:version] || b[:name] == 'master') },
+  :remotes  => remotes
+}
 
-targets = if ARGV.empty?
-  [`git symbolic-ref HEAD`.chomp.sub(/^refs\/heads\//, "")]
-else
-  ARGV
-end.map { |t| branches[t] or die "can't find branch #{t.inspect}" }
+def branch_sync_status(local, remote, show_outgoing=true, show_incoming=true, good="in sync", bad="out of sync")
+  outgoing = show_outgoing ? commits_between(remote[:rev], local[:rev])  : []
+  incoming = show_incoming ? commits_between(local[:rev],  remote[:rev]) : []
 
-targets.each { |t| show t, branches }
+  sync = (incoming.length == 0 && outgoing.length == 0)
+
+  verb = case
+    when incoming.length > 0 &&
+         outgoing.length > 0 then 'merge'
+    when incoming.length > 0 then 'pull'
+    when outgoing.length > 0 then 'push'
+    else nil
+  end
+
+  puts sync ? "[x] #{good}" : "[ ] #{bad}"
+  incoming.each { |c| puts "    < #{c}" }
+  outgoing.each { |c| puts "    > #{c}" }
+
+  puts
+end
+
+
+puts "Local Branch: #{repo[:current][:name]}"
+branch_sync_status(repo[:current], repo[:current][:remote], true, true, "in sync with remote", "out of sync with remote (#{repo[:current][:parent][:remote]}/#{repo[:current][:parent][:branch]})")
+
+if repo[:current] == repo[:master]
+  puts "Version Branches:"
+  repo[:versions].each do |branch|
+    branch_sync_status(repo[:current], branch, false, true, "#{branch[:name]} is merged in", "#{branch[:name]} needs to be merged in")
+  end
+elsif repo[:versions].include?(repo[:current])
+  master = repo[:master]
+  puts "Master Branch: #{master[:name]}"
+  branch_sync_status(repo[:current], master, true, false, "in sync", "#{repo[:current][:name]} needs to be merged into master")
+end
+
+if repo[:features].length > 0
+  puts "Feature Branches:"
+  repo[:features].each do |branch|
+    branch_sync_status(repo[:current], branch, false, true, "#{branch[:name]} is merged in", "#{branch[:name]} needs to be merged in")
+  end
+end
