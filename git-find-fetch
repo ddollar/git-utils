@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# usage: git-find-fetch [--mirror] [--repack] DIRS...
+#
+# by John Wiegley <johnw@newartisans.com>
+#
+# The purpose of this script is to walk recursively through a set of
+# directories, fetching updates for any and all Git repositories found
+# therein.
+#
+# The script is smart about using git-svn or gc-utils, if those are needed to
+# get updates.  Further, it calls "git remote update" for each repository, to
+# ensure all its remotes are also updated.
+#
+# Lastly, if you have a remote called "mirror" in any repository, all its refs
+# will be "push --mirror"'d to that remote under the assumption that you want
+# the mirror to receive all the updates you just fetch'd.
+#
+# Options:
+#
+#   --mirror   Only push to your mirrors, do not fetch.
+#   --repack   Repack and prune repositories after updating them.
+
+mirror_only=false
+if [[ "$1" == --mirror ]]; then
+    mirror_only=true
+    shift 1
+fi
+
+repack=false
+if [[ "$1" == --repack ]]; then
+    repack=true
+    shift 1
+fi
+
+find "$@" \( -name .git -o -name '*.git' \) -type d | \
+    while read repo_dir
+    do
+	if [[ -f "$repo_dir"/config ]]
+	then
+	    if [[ $mirror_only == false ]]; then
+		# If this is a git-svn repo, use git svn fetch
+		if grep -q '^\[svn-remote ' "$repo_dir"/config
+		then
+		    echo git svn fetch: $repo_dir
+		    GIT_DIR="$repo_dir" git svn fetch
+
+		# If this is a gc-utils repo, use gc-utils update
+		elif grep -q '^\[gc-utils\]' "$repo_dir"/config
+		then
+		    echo gc-utils update: $repo_dir
+		    (cd "$repo_dir"; gc-utils update)
+
+		fi
+
+		GIT_DIR="$repo_dir" git remote update
+	    fi
+
+	    for remote in $(GIT_DIR="$repo_dir" git remote)
+	    do
+		if [[ $remote == mirror ]]; then
+		    echo git push: $repo_dir -- $remote
+		    GIT_DIR="$repo_dir" git push -f --mirror $remote
+		fi
+	    done
+
+	    if [[ $repack == true ]]; then
+		GIT_DIR="$repo_dir" git fsck --full && \
+		    GIT_DIR="$repo_dir" git repack -a -d -f --window=200 --depth=50 && \
+		    GIT_DIR="$repo_dir" git prune
+	    fi
+	fi
+    done

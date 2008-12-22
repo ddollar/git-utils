@@ -1,0 +1,16 @@
+#!/bin/bash
+
+stat=true
+if [[ "$1" == "-p" ]]; then
+    stat=false
+    shift 1
+fi
+
+HERE=$(pwd)
+
+(cd "$1" && git --git-dir=$HERE/.git diff ${2:-HEAD}) | \
+    if [[ $stat == true ]]; then \
+        diffstat | grep -v only$; \
+    else \
+        cat; \
+    fi

@@ -1,4 +1,2 @@
 #!/bin/sh
-for REMOTE in $(git remote); do
-  git push $REMOTE $*
-done
+for remote in $(git remote); do git push $remote; done
