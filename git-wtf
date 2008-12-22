@@ -130,7 +130,7 @@ puts "Local Branch: #{name(repo[:current])}"
 branch_sync_status(repo[:current], repo[:current][:parent], true, true, "in sync with remote", "out of sync with remote (#{repo[:current][:parent][:remote]}/#{repo[:current][:parent][:branch]})")
 
 if repo[:current] == repo[:master]
-  puts "Version $branches:"
+  puts "Version branches:"
   repo[:versions].each do |branch|
     branch_sync_status(repo[:current], branch, false, true, "#{branch[:name]} is merged in", "#{branch[:name]} needs to be merged in")
   end
@@ -141,7 +141,7 @@ elsif repo[:versions].include?(repo[:current])
 end
 
 if repo[:features].length > 0
-  puts "Feature $branches:"
+  puts "Feature branches:"
   repo[:features].each do |branch|
     branch_sync_status(repo[:current], branch, false, true, "#{branch[:name]} is merged in", "#{branch[:name]} needs to be merged in")
   end
