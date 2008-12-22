@@ -8,6 +8,13 @@ CONFIG_FILENAME = ".git-wtf"
 
 class Numeric; def pluralize s; "#{to_s} #{s}" + (self != 1 ? "s" : "") end end
 
+class Hash
+  def leaves
+    children = values.select { |v| v.is_a?(Hash) }
+    children.length > 0 ? children.map { |c| c.leaves }.flatten : self
+  end
+end
+
 def die s
   $stderr.puts "Error: #{s}"
   exit(-1)
@@ -46,7 +53,7 @@ end
 
 current_branch = File.read(File.join('.git', 'HEAD')).chomp.split('/').last
 
-branches = Dir[File.join('.git', 'refs', 'heads', '*')].inject({}) do |hash, ref|
+$branches = Dir[File.join('.git', 'refs', 'heads', '*')].inject({}) do |hash, ref|
   name    = File.basename(ref)
   rev     = File.read(ref).chomp
   current = (name == current_branch)
@@ -59,14 +66,11 @@ branches = Dir[File.join('.git', 'refs', 'heads', '*')].inject({}) do |hash, ref
     :rev     => rev,
     :current => current,
     :version => version,
-    :parent  => {
-      :remote => remote,
-      :branch => merge
-    }
+    :merge   => { :remote => remote, :branch => merge }
   }})
 end
 
-remotes = Dir[File.join('.git', 'refs', 'remotes', '*', '*')].inject({}) do |hash, ref|
+$remotes = Dir[File.join('.git', 'refs', 'remotes', '*', '*')].inject({}) do |hash, ref|
   ref_parts = ref.split('/')
   name   = ref_parts.pop
   remote = ref_parts.pop
@@ -76,20 +80,20 @@ remotes = Dir[File.join('.git', 'refs', 'remotes', '*', '*')].inject({}) do |has
   hash
 end
 
-branches.each do |name, branch|
-  branches[name][:remote] = begin
-    parent = branch[:parent]
-    remote = parent[:remote] == '.' ? branches : remotes[parent[:remote]]
-    remote[parent[:branch]]
+$branches.each do |name, branch|
+  $branches[name][:parent] = begin
+    merge  = branch[:merge] 
+    remote = merge[:remote] == '.' ? $branches : $remotes[merge[:remote]]
+    remote[merge[:branch]]
   end
 end
 
 repo = {
-  :master   => branches.values.detect { |b| b[:name] == 'master' },
-  :current  => branches.values.detect { |b| b[:current] },
-  :versions => branches.values.select { |b| b[:version] },
-  :features => branches.values.select { |b| !(b[:version] || b[:name] == 'master') },
-  :remotes  => remotes
+  :master   => ($branches.values + $remotes['origin'].values).detect { |b| b[:name] == 'master' },
+  :current  => $branches.values.detect { |b| b[:current] },
+  :versions => $branches.values.select { |b| b[:version] },
+  :features => $branches.values.select { |b| !(b[:version] || b[:name] == 'master') },
+  :remotes  => $remotes
 }
 
 def branch_sync_status(local, remote, show_outgoing=true, show_incoming=true, good="in sync", bad="out of sync")
@@ -113,23 +117,30 @@ def branch_sync_status(local, remote, show_outgoing=true, show_incoming=true, go
   puts
 end
 
+def name(branch)
+  if $remotes.leaves.include?(branch)
+    "#{branch[:remote]}/#{branch[:name]}"
+  else
+    "#{branch[:name]}"
+  end
+end
 
-puts "Local Branch: #{repo[:current][:name]}"
-branch_sync_status(repo[:current], repo[:current][:remote], true, true, "in sync with remote", "out of sync with remote (#{repo[:current][:parent][:remote]}/#{repo[:current][:parent][:branch]})")
+puts "Local Branch: #{name(repo[:current])}"
+branch_sync_status(repo[:current], repo[:current][:parent], true, true, "in sync with remote", "out of sync with remote (#{repo[:current][:parent][:remote]}/#{repo[:current][:parent][:branch]})")
 
 if repo[:current] == repo[:master]
-  puts "Version Branches:"
+  puts "Version $branches:"
   repo[:versions].each do |branch|
     branch_sync_status(repo[:current], branch, false, true, "#{branch[:name]} is merged in", "#{branch[:name]} needs to be merged in")
   end
 elsif repo[:versions].include?(repo[:current])
   master = repo[:master]
-  puts "Master Branch: #{master[:name]}"
-  branch_sync_status(repo[:current], master, true, false, "in sync", "#{repo[:current][:name]} needs to be merged into master")
+  puts "Master Branch: #{name(master)}"
+  branch_sync_status(repo[:current], master, true, false, "in sync", "#{name(repo[:current])} needs to be merged into master")
 end
 
 if repo[:features].length > 0
-  puts "Feature Branches:"
+  puts "Feature $branches:"
   repo[:features].each do |branch|
     branch_sync_status(repo[:current], branch, false, true, "#{branch[:name]} is merged in", "#{branch[:name]} needs to be merged in")
   end
