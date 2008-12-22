@@ -42,13 +42,14 @@ begin
   $config = YAML::load_file(CONFIG_FILENAME)
   raise 'invalid configuration format' unless $config["version_branches"].length > 0
 rescue
-  puts <<-CONFIG.gsub(/^  /, '')
-  Create a .git-wtf in your git repository directory that looks like:
-  --
-  version_branches:
-    - stable-2.0
-  CONFIG
-  exit 1
+  # puts <<-CONFIG.gsub(/^  /, '')
+  # Create a .git-wtf in your git repository directory that looks like:
+  # --
+  # version_branches:
+  #   - stable-2.0
+  # CONFIG
+  # exit 1
+  $config = { 'version_branches' => [] }
 end
 
 current_branch = File.read(File.join('.git', 'HEAD')).chomp.split('/').last
