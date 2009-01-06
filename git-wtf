@@ -1,10 +1,18 @@
 #!/usr/bin/env ruby
 
-require 'pp'
 $debug = false
 
 require 'yaml'
 CONFIG_FILENAME = ".git-wtf"
+
+begin
+  require 'rubygems'
+  require 'term/ansicolor'
+  HAS_COLOR=true
+  include Term::ANSIColor
+rescue LoadError
+  HAS_COLOR=false
+end
 
 class Numeric; def pluralize s; "#{to_s} #{s}" + (self != 1 ? "s" : "") end end
 
@@ -20,29 +28,61 @@ def die s
   exit(-1)
 end
 
+COLOR_ATTRIBUTES = {
+  0 => black,
+  1 => red,
+  2 => green,
+  3 => yellow,
+  4 => blue,
+  5 => magenta,
+  6 => cyan,
+  7 => dark,
+  8 => bold,
+  9 => reset
+} if HAS_COLOR
+
+def cputs(string='')
+  COLOR_ATTRIBUTES.each { |num, color| string.gsub!("&|#{num}", color) } if HAS_COLOR
+  puts string
+end
+
 def run_command(command)
   output = IO.popen(command, 'r').read
 
   if $debug
-    puts "-- begin run_command --"
-    puts "executing: #{command}"
-    puts "output:"
-    puts output
-    puts "-- end run_command --"
+    cputs "-- begin run_command --"
+    cputs "executing: #{command}"
+    cputs "output:"
+    cputs output
+    cputs "-- end run_command --"
   end
 
   output
 end
 
 def commits_between from, to
-  run_command(%{ git log --pretty=format:"- [%h] %s" #{from}..#{to} }).split(/[\r\n]+/).map { |s| s.gsub(/- /, '') }
+  commits = run_command(%{ git log --pretty=format:"%h-%ae-%s" #{from}..#{to} }).split(/[\r\n]+/).map do |raw_commit|
+    raw_commit_parts = raw_commit.split('-')
+
+    {
+      :hash    => raw_commit_parts.shift,
+      :author  => raw_commit_parts.shift.split('@').first,
+      :message => raw_commit_parts.join('-')
+    }
+  end
+  
+  max_author_size = commits.map { |c| c[:author].length }.sort.last
+  
+  commits.map do |commit|
+    "[&|2%s&|9] &|8&|4%#{max_author_size}s&|9 %s" % [commit[:hash], commit[:author], commit[:message]]
+  end
 end
 
 begin
   $config = YAML::load_file(CONFIG_FILENAME)
   raise 'invalid configuration format' unless $config["version_branches"].length > 0
 rescue
-  # puts <<-CONFIG.gsub(/^  /, '')
+  # cputs <<-CONFIG.gsub(/^  /, '')
   # Create a .git-wtf in your git repository directory that looks like:
   # --
   # version_branches:
@@ -111,11 +151,9 @@ def branch_sync_status(local, remote, show_outgoing=true, show_incoming=true, go
     else nil
   end
 
-  puts sync ? "[x] #{good}" : "[ ] #{bad}"
-  incoming.each { |c| puts "    < #{c}" }
-  outgoing.each { |c| puts "    > #{c}" }
-
-  puts
+  cputs sync ? "[x] #{good}" : "[ ] #{bad}"
+  incoming.each { |c| cputs "    &|8&|3<&|9 #{c}" }
+  outgoing.each { |c| cputs "    &|8&|3>&|9 #{c}" }
 end
 
 def name(branch)
@@ -126,24 +164,28 @@ def name(branch)
   end
 end
 
-puts "Local Branch: #{name(repo[:current])}"
-branch_sync_status(repo[:current], repo[:current][:parent], true, true, "in sync with remote", "out of sync with remote (#{repo[:current][:parent][:remote]}/#{repo[:current][:parent][:branch]})")
+cputs "Local Branch: #{name(repo[:current])}"
+branch_sync_status(repo[:current], repo[:current][:parent], true, true, "in sync with remote", "out of sync with remote (#{repo[:current][:parent][:remote]}/#{repo[:current][:parent][:name]})")
+
+cputs
 
 if repo[:current] == repo[:master]
   if repo[:versions].length > 0
-    puts "Version branches:"
+    cputs "Version branches:"
     repo[:versions].each do |branch|
       branch_sync_status(repo[:current], branch, false, true, "#{branch[:name]} is merged in", "#{branch[:name]} needs to be merged in")
     end
   end
 elsif repo[:versions].include?(repo[:current])
   master = repo[:master]
-  puts "Master Branch: #{name(master)}"
+  cputs "Master Branch: #{name(master)}"
   branch_sync_status(repo[:current], master, true, false, "in sync", "#{name(repo[:current])} needs to be merged into master")
 end
 
+cputs
+
 if repo[:features].length > 0
-  puts "Feature branches:"
+  cputs "Feature branches:"
   repo[:features].each do |branch|
     branch_sync_status(repo[:current], branch, false, true, "#{branch[:name]} is merged in", "#{branch[:name]} needs to be merged in")
   end
