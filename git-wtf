@@ -166,7 +166,6 @@ end
 
 cputs "Local Branch: #{name(repo[:current])}"
 branch_sync_status(repo[:current], repo[:current][:parent], true, true, "in sync with remote", "out of sync with remote (#{repo[:current][:parent][:remote]}/#{repo[:current][:parent][:name]})")
-
 cputs
 
 if repo[:current] == repo[:master]
@@ -175,14 +174,14 @@ if repo[:current] == repo[:master]
     repo[:versions].each do |branch|
       branch_sync_status(repo[:current], branch, false, true, "#{branch[:name]} is merged in", "#{branch[:name]} needs to be merged in")
     end
+    cputs
   end
 elsif repo[:versions].include?(repo[:current])
   master = repo[:master]
   cputs "Master Branch: #{name(master)}"
   branch_sync_status(repo[:current], master, true, false, "in sync", "#{name(repo[:current])} needs to be merged into master")
+  cputs
 end
-
-cputs
 
 if repo[:features].length > 0
   cputs "Feature branches:"
