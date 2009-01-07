@@ -1,0 +1,2 @@
+#!/bin/sh
+git merge --no-ff $1
