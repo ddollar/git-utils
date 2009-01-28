@@ -42,7 +42,11 @@ COLOR_ATTRIBUTES = {
 } if HAS_COLOR
 
 def cputs(string='')
-  COLOR_ATTRIBUTES.each { |num, color| string.gsub!("&|#{num}", color) } if HAS_COLOR
+  if HAS_COLOR
+    COLOR_ATTRIBUTES.each { |num, color| string.gsub!("&|#{num}", color) }
+  else
+    string.gsub!(/&\|\d/, '')
+  end
   puts string
 end
 
