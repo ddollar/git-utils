@@ -125,7 +125,7 @@ $branches.each do |name, branch|
   $branches[name][:parent] = begin
     merge  = branch[:merge] 
     remote = merge[:remote] == '.' ? $branches : $remotes[merge[:remote]]
-    remote[merge[:branch]]
+    remote ? remote[merge[:branch]] : nil
   end
 end
 
