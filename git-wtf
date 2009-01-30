@@ -169,7 +169,7 @@ def name(branch)
 end
 
 cputs "Local Branch: #{name(repo[:current])}"
-branch_sync_status(repo[:current], repo[:current][:parent], true, true, "in sync with remote", "out of sync with remote (#{repo[:current][:parent][:remote]}/#{repo[:current][:parent][:name]})")
+branch_sync_status(repo[:current], repo[:current][:parent], true, true, "in sync with remote", "out of sync with remote (#{repo[:current][:parent][:remote]}/#{repo[:current][:parent][:name]})") if repo[:current][:parent]
 cputs
 
 if repo[:current] == repo[:master]
