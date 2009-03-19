@@ -98,9 +98,10 @@ end
 
 current_branch = File.read(File.join('.git', 'HEAD')).chomp.split('/').last
 
-$branches = Dir[File.join('.git', 'refs', 'heads', '*')].inject({}) do |hash, ref|
-  name    = File.basename(ref)
-  rev     = File.read(ref).chomp
+$branches = run_command("git for-each-ref refs/heads").split("\n").inject({}) do |hash, line|
+  parts   = line.split(' ')
+  name    = parts.last.split('/').last
+  rev     = parts.first
   current = (name == current_branch)
   version = $config["version_branches"].include?(name)
   remote  = run_command("git config --get branch.#{name}.remote").chomp
