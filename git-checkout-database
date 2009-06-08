@@ -1,0 +1,176 @@
+#!/usr/bin/env ruby
+
+#
+# usage: git-checkout-database <branch>
+#
+#   makes switching branches that have different migrations easier
+#
+#   * reverts all migrations unique to the current branch
+#   * switches to the branch
+#   * applies all migrations unique to the other branch
+#
+
+$debug = false
+
+begin
+  require 'rubygems'
+  require 'term/ansicolor'
+  HAS_COLOR=true
+  include Term::ANSIColor
+rescue LoadError
+  HAS_COLOR=false
+end
+
+
+class Numeric; def pluralize s; "#{to_s} #{s}" + (self != 1 ? "s" : "") end end
+
+class Hash
+  def leaves
+    children = values.select { |v| v.is_a?(Hash) }
+    children.length > 0 ? children.map { |c| c.leaves }.flatten : self
+  end
+end
+
+## utility ###################################################################
+
+def die(s)
+  $stderr.puts "Error: #{s}"
+  exit(-1)
+end
+
+def run_command(command)
+  output = IO.popen(command, 'r').read
+
+  if $debug
+    cputs "-- begin run_command --"
+    cputs "executing: #{command}"
+    cputs "output:"
+    cputs output
+    cputs "-- end run_command --"
+  end
+
+  output
+end
+
+## color #####################################################################
+
+COLOR_ATTRIBUTES = {
+  0 => black,
+  1 => red,
+  2 => green,
+  3 => yellow,
+  4 => blue,
+  5 => magenta,
+  6 => cyan,
+  7 => dark,
+  8 => bold,
+  9 => reset
+} if HAS_COLOR
+
+def cputs(string='')
+  if HAS_COLOR
+    COLOR_ATTRIBUTES.each { |num, color| string.gsub!("&|#{num}", color) }
+  else
+    string.gsub!(/&\|\d/, '')
+  end
+  puts string
+end
+
+## git #######################################################################
+
+def working_root
+  path = Dir.pwd
+  loop do
+    break(path) if File.exists?(File.join(path, '.git'))
+    newpath = File.dirname(path)
+    raise "Can't find .git directory" if newpath == path
+    path = newpath
+  end
+end
+
+def git_root
+  File.join(working_root, '.git')
+end
+
+def current_branch
+  File.read(File.join(git_root, 'HEAD')).chomp.split('/').last
+end
+
+def branches
+  run_command('git for-each-ref refs/heads').split("\n").map do |line|
+    revision, type, ref = line.split(' ')
+    branch = ref.split('/').last
+  end
+end
+
+def clean
+  run_command('git status').match /nothing to commit \(working directory clean\)/
+end
+
+def ls(treeish, path)
+  run_command("git ls-tree #{treeish} #{path}").map do |line|
+    mode, type, revision, file = line.split(' ')
+    file.gsub(Regexp.new("\\A#{path}"), '')
+  end
+end
+
+def checkout(treeish)
+  run_command("git checkout #{treeish}")
+end
+
+## local #####################################################################
+
+## main ######################################################################
+
+unless other_branch = ARGV.first
+  puts "usage: git-checkout-database <branch>"
+  exit 1
+end
+
+die "Invalid branch: #{other_branch}" unless branches.include?(other_branch)
+die "Outstanding changes, please commit to a clean state" unless clean
+
+migrations = {
+  :current => ls(current_branch, 'db/migrate/'),
+  :other   => ls(other_branch,   'db/migrate/')
+}
+
+migration_numbers = migrations.keys.inject({}) do |hash, type|
+  hash.update(type => migrations[type].map { |m| m.split('_').first }.sort)
+end
+
+migrations_by_number = migration_numbers.keys.inject({}) do |hash, type|
+  hash.update(type => migrations[type].inject({}) do |hashb, migration|
+    hashb.update(migration.split('_').first => migration)
+  end)
+end
+
+unique_migration_numbers = {
+  :current => migration_numbers[:current] - migration_numbers[:other],
+  :other   => migration_numbers[:other]   - migration_numbers[:current],
+}
+
+unique_migration_numbers[:current].each do |number|
+  cputs "  revert &|1#{migrations_by_number[:current][number]}&|9"
+end
+
+cputs "checkout &|8&|0#{other_branch}&|9"
+
+unique_migration_numbers[:other].each do |number|
+  cputs "   apply &|2#{migrations_by_number[:other][number]}&|9"
+end
+
+print "Is this OK? (y/N) "
+input = $stdin.gets.chomp
+
+if input.upcase == 'Y'
+  unique_migration_numbers[:current].sort.reverse.each do |number|
+    system("rake db:migrate:down VERSION=#{number}") || die("reverting migrations")
+  end
+
+  run_command "git checkout #{other_branch}"
+
+  unique_migration_numbers[:other].sort.each do |number|
+    system("rake db:migrate:up VERSION=#{number}") || die("applying migrations")
+  end
+end
