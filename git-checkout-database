@@ -21,16 +21,6 @@ rescue LoadError
   HAS_COLOR=false
 end
 
-
-class Numeric; def pluralize s; "#{to_s} #{s}" + (self != 1 ? "s" : "") end end
-
-class Hash
-  def leaves
-    children = values.select { |v| v.is_a?(Hash) }
-    children.length > 0 ? children.map { |c| c.leaves }.flatten : self
-  end
-end
-
 ## utility ###################################################################
 
 def die(s)
@@ -103,7 +93,7 @@ def branches
   end
 end
 
-def clean
+def working_directory_clean?
   run_command('git status').match /nothing to commit \(working directory clean\)/
 end
 
@@ -118,8 +108,6 @@ def checkout(treeish)
   run_command("git checkout #{treeish}")
 end
 
-## local #####################################################################
-
 ## main ######################################################################
 
 unless other_branch = ARGV.first
@@ -128,7 +116,7 @@ unless other_branch = ARGV.first
 end
 
 die "Invalid branch: #{other_branch}" unless branches.include?(other_branch)
-die "Outstanding changes, please commit to a clean state" unless clean
+die "Outstanding changes, please commit to a clean state" unless working_directory_clean?
 
 migrations = {
   :current => ls(current_branch, 'db/migrate/'),
@@ -136,12 +124,12 @@ migrations = {
 }
 
 migration_numbers = migrations.keys.inject({}) do |hash, type|
-  hash.update(type => migrations[type].map { |m| m.split('_').first }.sort)
+  hash.update(type => migrations[type].map { |m| m.split('_').first.to_i }.sort)
 end
 
 migrations_by_number = migration_numbers.keys.inject({}) do |hash, type|
   hash.update(type => migrations[type].inject({}) do |hashb, migration|
-    hashb.update(migration.split('_').first => migration)
+    hashb.update(migration.split('_').first.to_i => migration)
   end)
 end
 
@@ -150,20 +138,19 @@ unique_migration_numbers = {
   :other   => migration_numbers[:other]   - migration_numbers[:current],
 }
 
-unique_migration_numbers[:current].each do |number|
+unique_migration_numbers[:current].sort.reverse.each do |number|
   cputs "  revert &|1#{migrations_by_number[:current][number]}&|9"
 end
 
 cputs "checkout &|8&|0#{other_branch}&|9"
 
-unique_migration_numbers[:other].each do |number|
+unique_migration_numbers[:other].sort.each do |number|
   cputs "   apply &|2#{migrations_by_number[:other][number]}&|9"
 end
 
 print "Is this OK? (y/N) "
-input = $stdin.gets.chomp
 
-if input.upcase == 'Y'
+if $stdin.gets.chomp.upcase == 'Y'
   unique_migration_numbers[:current].sort.reverse.each do |number|
     system("rake db:migrate:down VERSION=#{number}") || die("reverting migrations")
   end
