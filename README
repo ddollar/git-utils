@@ -1,3 +1,7 @@
+Many of these have been grabbed from various sources around the interwebs. I unfortunately was terrible about
+keeping track of where they came from. If I have one of your scripts in this collection and you would like
+credit (or removal) just contact me at ddollar@gmail.com
+
 git-incoming         # shows incoming commits from the tracked (or specified) branch
 git-incoming-short   # same but shorter
 git-last             # git last 3 (show the last 3 commits)
