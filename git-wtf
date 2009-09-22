@@ -84,19 +84,14 @@ end
 
 begin
   $config = YAML::load_file(CONFIG_FILENAME)
-  raise 'invalid configuration format' unless $config["version_branches"].length > 0
 rescue
-  # cputs <<-CONFIG.gsub(/^  /, '')
-  # Create a .git-wtf in your git repository directory that looks like:
-  # --
-  # version_branches:
-  #   - stable-2.0
-  # CONFIG
-  # exit 1
-  $config = { 'version_branches' => [] }
+  $config = {}
+ensure
+  $config['version_branches']   ||= []
+  $config['alternate_branches'] ||= []
 end
 
-current_branch = File.read(File.join('.git', 'HEAD')).chomp.split('/').last
+current_branch = run_command("git branch").split("\n").detect { |l| l[0,1] == '*' }[2..-1]
 
 $branches = run_command("git for-each-ref refs/heads").split("\n").inject({}) do |hash, line|
   parts   = line.split(' ')
@@ -104,6 +99,7 @@ $branches = run_command("git for-each-ref refs/heads").split("\n").inject({}) do
   rev     = parts.first
   current = (name == current_branch)
   version = $config["version_branches"].include?(name)
+  alt     = $config["alternate_branches"].include?(name)
   remote  = run_command("git config --get branch.#{name}.remote").chomp
   merge   = run_command("git config --get branch.#{name}.merge").chomp.split('/').last
 
@@ -112,15 +108,17 @@ $branches = run_command("git for-each-ref refs/heads").split("\n").inject({}) do
     :rev     => rev,
     :current => current,
     :version => version,
+    :alt     => alt,
     :merge   => { :remote => remote, :branch => merge }
   }})
 end
 
-$remotes = Dir[File.join('.git', 'refs', 'remotes', '*', '*')].inject({}) do |hash, ref|
-  ref_parts = ref.split('/')
-  name   = ref_parts.pop
-  remote = ref_parts.pop
-  rev    = File.read(ref).chomp
+$remotes = run_command("git for-each-ref refs/remotes").split("\n").inject({}) do |hash, line|
+  parts     = line.split(' ')
+  ref_parts = parts.last.split('/')
+  name      = ref_parts.pop
+  remote    = ref_parts.pop
+  rev       = parts.first
   hash[remote] ||= {}
   hash[remote][name] = { :name => name, :remote => remote, :rev => rev }
   hash
@@ -138,7 +136,8 @@ repo = {
   :master   => ($branches.values + $remotes['origin'].values).detect { |b| b[:name] == 'master' },
   :current  => $branches.values.detect { |b| b[:current] },
   :versions => $branches.values.select { |b| b[:version] },
-  :features => $branches.values.select { |b| !(b[:version] || b[:name] == 'master') },
+  :alts     => $branches.values.select { |b| b[:alt]     },
+  :features => $branches.values.select { |b| !(b[:version] || b[:alt] || b[:name] == 'master') },
   :remotes  => $remotes
 }
 
@@ -173,18 +172,32 @@ cputs "Local Branch: #{name(repo[:current])}"
 branch_sync_status(repo[:current], repo[:current][:parent], true, true, "in sync with remote", "out of sync with remote (#{repo[:current][:parent][:remote]}/#{repo[:current][:parent][:name]})") if repo[:current][:parent]
 cputs
 
-if repo[:current] == repo[:master]
-  if repo[:versions].length > 0
-    cputs "Version branches:"
-    repo[:versions].each do |branch|
-      branch_sync_status(repo[:current], branch, false, true, "#{branch[:name]} is merged in", "#{branch[:name]} needs to be merged in")
-    end
-    cputs
+# if repo[:versions].include?(repo[:current])
+#   master = repo[:master]
+#   cputs "Master Branch: #{name(master)}"
+#   branch_sync_status(repo[:current], master, true, false, "in sync", "#{name(repo[:current])} needs to be merged into master")
+#   cputs
+# elsif repo[:alts].include?(repo[:current])
+#   master = repo[:master]
+#   cputs "Master Branch: #{name(master)}"
+#   branch_sync_status(repo[:current], master, true, false, "in sync", "#{name(repo[:current])} needs to be merged into master")
+#   cputs
+# end
+
+if repo[:versions].length > 0
+  cputs "Version branches:"
+  repo[:versions].each do |branch|
+    branch_sync_status(repo[:master], branch, false, true, "#{branch[:name]} is merged in to master", "#{branch[:name]} needs to be merged in to master")
   end
-elsif repo[:versions].include?(repo[:current])
+  cputs
+end
+
+if repo[:alts].length > 0
   master = repo[:master]
-  cputs "Master Branch: #{name(master)}"
-  branch_sync_status(repo[:current], master, true, false, "in sync", "#{name(repo[:current])} needs to be merged into master")
+  cputs "Alternate branches:"
+  repo[:alts].each do |branch|
+    branch_sync_status(master, branch, true, false, "#{branch[:name]} is updated from master", "#{branch[:name]} needs to be updated from master")
+  end
   cputs
 end
 
