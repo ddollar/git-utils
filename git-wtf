@@ -99,7 +99,7 @@ $branches = run_command("git for-each-ref refs/heads").split("\n").inject({}) do
   rev     = parts.first
   current = (name == current_branch)
   version = $config["version_branches"].include?(name)
-  alt     = $config["alternate_branches"][name]
+  alt     = ($config["alternate_branches"] || {})[name]
   remote  = run_command("git config --get branch.#{name}.remote").chomp
   merge   = run_command("git config --get branch.#{name}.merge").chomp.split('/').last
 
