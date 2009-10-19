@@ -88,7 +88,7 @@ rescue
   $config = {}
 ensure
   $config['version_branches']   ||= []
-  $config['alternate_branches'] ||= []
+  $config['alternate_branches'] ||= {}
 end
 
 current_branch = run_command("git branch").split("\n").detect { |l| l[0,1] == '*' }[2..-1]
@@ -99,7 +99,8 @@ $branches = run_command("git for-each-ref refs/heads").split("\n").inject({}) do
   rev     = parts.first
   current = (name == current_branch)
   version = $config["version_branches"].include?(name)
-  alt     = ($config["alternate_branches"] || {})[name]
+  puts $config.inspect
+  alt     = $config["alternate_branches"][name]
   remote  = run_command("git config --get branch.#{name}.remote").chomp
   merge   = run_command("git config --get branch.#{name}.merge").chomp.split('/').last
 
