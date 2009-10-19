@@ -133,7 +133,7 @@ $branches.each do |name, branch|
 end
 
 repo = {
-  :master   => ($branches.values + $remotes['origin'].values).detect { |b| b[:name] == 'master' },
+  :master   => ($branches.values + ($remotes['origin'] || {}).values).detect { |b| b[:name] == 'master' },
   :current  => $branches.values.detect { |b| b[:current] },
   :versions => $branches.values.select { |b| b[:version] },
   :alts     => $branches.values.select { |b| b[:alt]     },
