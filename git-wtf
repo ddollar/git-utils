@@ -99,7 +99,7 @@ $branches = run_command("git for-each-ref refs/heads").split("\n").inject({}) do
   rev     = parts.first
   current = (name == current_branch)
   version = $config["version_branches"].include?(name)
-  alt     = $config["alternate_branches"].include?(name)
+  alt     = $config["alternate_branches"][name]
   remote  = run_command("git config --get branch.#{name}.remote").chomp
   merge   = run_command("git config --get branch.#{name}.merge").chomp.split('/').last
 
@@ -196,8 +196,8 @@ if repo[:alts].length > 0
   master = repo[:master]
   cputs "Alternate branches:"
   repo[:alts].each do |branch|
-    parent = $branches[branch[:merge][:remote]]
-    branch_sync_status(parent, branch, true, false, "#{branch[:name]} is updated from master", "#{branch[:name]} needs to be updated from #{parent[:name]}")
+    parent = $branches[branch[:alt]]
+    branch_sync_status(parent, branch, true, false, "#{branch[:name]} is updated from #{parent[:name]}", "#{branch[:name]} needs to be updated from #{parent[:name]}")
   end
   cputs
 end
