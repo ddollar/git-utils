@@ -1,3 +1,4 @@
-#!/usr/bin/env bash
-git add .
-git ls-files --deleted | xargs --no-run-if-empty git rm
+#!/bin/sh
+
+git add -A $@
+git ls-files --deleted -z $@ | xargs -0 git rm 
