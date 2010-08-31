@@ -1,3 +1,0 @@
-#!/bin/sh
-
-[ $# -eq 7 ] && emacsclient --eval "(ediff \"$2\" \"$PWD/$5\")"
