@@ -12,7 +12,7 @@ if [ "${CURRENT_BRANCH}" != "" ]; then
     # there is a tracking repository
     if [ "${TRACKING_REPOSITORY}" != "" ]; then
       REMOTE_REPOSITORY="${TRACKING_REPOSITORY}"
-      REMOTE_BRANCH="$(git config branch.${CURRENT_BRANCH}.merge | cut -d"/" -f3)"
+      REMOTE_BRANCH="$(git config branch.${CURRENT_BRANCH}.merge | sed -e 's#^[^/]*/[^/]*/##')"
       TARGET="${REMOTE_REPOSITORY}/${REMOTE_BRANCH}"
     fi
   fi
