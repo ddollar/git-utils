@@ -6,7 +6,7 @@ if [ "${CURRENT_BRANCH}" != "" ]; then
   
   TARGET="${1}"
   
-  if [ "${TARGET}" == "" ]; then
+  if [ -z "${TARGET}" ]; then
     TRACKING_REPOSITORY="$(git config branch.${CURRENT_BRANCH}.remote)"
     
     # there is a tracking repository
