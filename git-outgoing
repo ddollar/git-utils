@@ -1,8 +1,8 @@
 #!/bin/sh
 
-CURRENT_BRANCH=$(git name-rev HEAD | cut -d " " -f2)
+CURRENT_BRANCH=$(git name-rev --name-only --refs="refs/heads/*" `git symbolic-ref -q HEAD`)
 
-if [ "${CURRENT_BRANCH}" != "" ]; then
+if [ -n "${CURRENT_BRANCH}" ]; then
   
   TARGET="${1}"
   

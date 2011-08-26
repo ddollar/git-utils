@@ -6,7 +6,7 @@ fi
 
 
 NEW_BRANCH=${1}
-CURRENT_BRANCH=$(git name-rev HEAD | cut -d " " -f2)
+CURRENT_BRANCH=$(git name-rev --name-only --refs="refs/heads/*" `git symbolic-ref -q HEAD`)
 
 git stash save autostash &>/dev/null
 git checkout ${NEW_BRANCH}
