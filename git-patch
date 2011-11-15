@@ -5,7 +5,9 @@ CURRENT_DIR=$(basename $(pwd))
 
 PATCH_DIR="${HOME}/Documents/Patches/${CURRENT_DIR}"
 
-mkdir -p ${PATCH_DIR}
+TARGET_BRANCH="${1-master}"
+DEST="${PATCH_DIR}/${CURRENT_BRANCH}-${TARGET_BRANCH}.diff"
+mkdir -p "$(dirname $DEST)"
 
-git format-patch master --stdout > ${PATCH_DIR}/${CURRENT_BRANCH}.diff
+git format-patch ${TARGET_BRANCH} --stdout > $DEST
 
