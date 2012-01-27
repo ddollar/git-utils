@@ -95,7 +95,7 @@ current_branch = run_command("git branch").split("\n").detect { |l| l[0,1] == '*
 
 $branches = run_command("git for-each-ref refs/heads").split("\n").inject({}) do |hash, line|
   parts   = line.split(' ')
-  name    = parts.last.split('/').last
+  name    = parts.last.split('/')[2..-1].join('/')
   rev     = parts.first
   current = (name == current_branch)
   version = $config["version_branches"].include?(name)
