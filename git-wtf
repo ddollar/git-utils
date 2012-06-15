@@ -65,13 +65,13 @@ def run_command(command)
 end
 
 def commits_between from, to
-  commits = run_command(%{ git log --pretty=format:"%h-%ae-%s" #{from}..#{to} }).split(/[\r\n]+/).map do |raw_commit|
-    raw_commit_parts = raw_commit.split('-')
+  commits = run_command(%{ git log --pretty=format:"%h|%ae|%s" #{from}..#{to} }).split(/[\r\n]+/).map do |raw_commit|
+    raw_commit_parts = raw_commit.split('|')
 
     {
       :hash    => raw_commit_parts.shift,
       :author  => raw_commit_parts.shift.split('@').first,
-      :message => raw_commit_parts.join('-')
+      :message => raw_commit_parts.join('|')
     }
   end
   
