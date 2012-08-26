@@ -1,0 +1,20 @@
+#!/bin/bash
+green() {
+	echo
+	echo -e "\033[1;32m$*\033[0m"
+}
+
+green Local status
+git status
+(( "$?" != 0 )) && exit $?
+
+green Fetching...
+git fetch --all
+
+green Incoming changes:
+git incoming "$@"
+
+green Outgoing changes:
+git outgoing "$@"
+
+echo
