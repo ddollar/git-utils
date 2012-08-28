@@ -1,0 +1,30 @@
+#!/bin/bash
+
+red() {
+	echo
+	echo -e "\033[1;31m$*\033[0m"
+}
+
+green() {
+	echo
+	echo -e "\033[1;32m$*\033[0m"
+}
+
+stat() {
+	status="$(git status --porcelain 2> /dev/null)"
+	if (( $? != 0 )) || [[ "$status" != "" ]]; then
+		red Stopping
+		git status
+		echo
+		exit 1
+	fi
+}
+
+stat
+green Pulling
+git pull "$@"
+stat
+green Pushing
+git push "$@"
+stat
+echo
