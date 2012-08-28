@@ -23,4 +23,4 @@ fi
 echo "From: ${TARGET}"
 echo ""
 
-git log ..${TARGET} --oneline | color-first-word
+git log ..${TARGET} --oneline
