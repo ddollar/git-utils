@@ -4,9 +4,14 @@ green() {
 	echo -e "\033[1;32m$*\033[0m"
 }
 
+clear
+
 green Local status
 git status
 (( "$?" != 0 )) && exit $?
+
+green Stashes
+git stash list --oneline
 
 green Fetching...
 git fetch --all
