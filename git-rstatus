@@ -1,8 +1,43 @@
 #!/bin/bash
+
 green() {
 	echo
 	echo -e "\033[1;32m$*\033[0m"
 }
+
+usage() {
+	cat <<-USAGE
+		Usage:
+		  $0
+		  $0 repo
+		  $0 repo/branch
+		Example:
+		  $0
+		  $0 origin
+		  $0 origin/master
+		USAGE
+	exit 1
+}
+
+case "$#" in
+	1)
+		remote_branch="$1"
+		if [[ "$remote_branch" == */* ]]; then
+			remote_source="$(echo "$1" | sed -e 's#^remote/##g' -e 's#/.*##g')"
+		else
+			remote_source="$remote_branch"
+			remote_branch="$remote_branch/master"
+		fi
+		;;
+	0)
+		git_remote_source="$(dirname "$(readlink "$0")")/git-remote-source"
+		remote_branch="$("$git_remote_source")"
+		remote_source="$(echo "$remote_branch" | sed -e 's#/.*##')"
+		;;
+	*)
+		usage
+		;;
+esac
 
 clear
 
@@ -13,13 +48,13 @@ git status
 green Stashes
 git stash list --oneline
 
-green Fetching...
-git fetch --all
+green "Fetching $remote_source..."
+git fetch "$remote_source" -v
 
-green Incoming changes:
-git incoming "$@"
+green "Incoming changes:"
+git incoming "$remote_branch"
 
-green Outgoing changes:
-git outgoing "$@"
+green "Outgoing changes:"
+git outgoing "$remote_branch"
 
 echo
