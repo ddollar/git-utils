@@ -1,5 +1,16 @@
 #!/bin/bash
 
+usage() {
+	cat <<-USAGE
+		Usage:
+		  $0
+		    Pulls and pushes.
+		  $0 --stash
+		    Saves the current status in stash, then does a normal sync.
+	USAGE
+	exit 1
+}
+
 red() {
 	echo
 	echo -e "\033[1;31m$*\033[0m"
@@ -14,17 +25,50 @@ stat() {
 	status="$(git status --porcelain 2> /dev/null)"
 	if (( $? != 0 )) || [[ "$status" != "" ]]; then
 		red Stopping
+		if [[ "$1" != "" ]]; then
+			echo "$1"
+		fi
+		echo
 		git status
 		echo
 		exit 1
 	fi
 }
 
-stat
+stash=0
+while [[ "$1" == -* ]]; do
+	case "$1" in
+		--stash)
+			stash=1
+			;;
+		*)
+			usage
+			;;
+	esac
+	shift
+done
+if (( "$#" != 0 )); then
+	usage
+fi
+
+if (( $stash == 1 )); then
+	green Stashing
+	git stash save
+else
+	stat "To stash before and after syncing, call git sync --stash"
+fi
+
 green Pulling
 git pull "$@"
 stat
+
 green Pushing
 git push "$@"
 stat
+
+if (( $stash == 1 )); then
+	green Popping the stash
+	git stash pop
+fi
+
 echo
