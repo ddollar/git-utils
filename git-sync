@@ -52,8 +52,16 @@ if (( "$#" != 0 )); then
 fi
 
 if (( $stash == 1 )); then
+	old_stash_count=$(git stash list | wc -l)
+
 	green Stashing
 	git stash save
+
+	new_stash_count=$(git stash list | wc -l)
+	if (( $new_stash_count == $old_stash_count )); then
+		# The stash save didn't do anything; turn off stashing so we don't pop anything either.
+		stash=0
+	fi
 else
 	stat "To stash before and after syncing, call git sync --stash"
 fi
