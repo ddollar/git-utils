@@ -19,6 +19,20 @@ usage() {
 	exit 1
 }
 
+fetch=1
+
+while [[ "$1" == -* ]]; do
+	case "$1" in
+		--no-fetch)
+			fetch=0
+			;;
+		*)
+			usage
+			;;
+	esac
+	shift
+done
+
 case "$#" in
 	1)
 		remote_branch="$1"
@@ -42,19 +56,21 @@ esac
 clear
 
 green Local status
-git status
+git --no-pager status
 (( "$?" != 0 )) && exit $?
 
 green Stashes
-git stash list --oneline
+git --no-pager stash list --oneline
 
-green "Fetching $remote_source..."
-git fetch "$remote_source" -v
+if (( "$fetch" == 1 )); then
+	green "Fetching $remote_source..."
+	git --no-pager fetch "$remote_source" -v
+fi
 
 green "Incoming changes:"
-git incoming "$remote_branch"
+git --no-pager incoming "$remote_branch"
 
 green "Outgoing changes:"
-git outgoing "$remote_branch"
+git --no-pager outgoing "$remote_branch"
 
 echo
