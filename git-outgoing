@@ -1,9 +1,9 @@
 #!/bin/bash
 
-GIT_REMOTE_SOURCE="$(dirname "$(readlink "$0")")/git-remote-source"
-TARGET="$("$GIT_REMOTE_SOURCE" "$@")"
+. "$(dirname "$(readlink "$0")")/bash-functions"
+parse_source_args "$@"
 
-echo "To: ${TARGET}"
+echo "To: $branch"
 echo ""
 
-git log ${TARGET}.. --oneline
+git log $branch.. --oneline
