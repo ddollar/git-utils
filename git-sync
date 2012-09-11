@@ -3,10 +3,12 @@
 usage() {
 	cat <<-USAGE
 		Usage:
-		  $0
-		    Pulls and pushes.
-		  $0 --stash
-		    Saves the current status in stash, then does a normal sync.
+		  $0 [--stash] [repo[/branch]]
+		    Fetch, rebase, and push.
+		  --stash
+		    Saves the current status in stash before syncing, and pops afterwards.
+		  repo/branch
+		    Specifies where to fetch from, pull to, and what to merge with. 
 	USAGE
 	exit 1
 }
@@ -47,9 +49,26 @@ while [[ "$1" == -* ]]; do
 	esac
 	shift
 done
-if (( "$#" != 0 )); then
-	usage
-fi
+
+case "$#" in
+	1)
+		remote_branch="$1"
+		if [[ "$remote_branch" == */* ]]; then
+			remote_source="$(echo "$1" | sed -e 's#^remote/##g' -e 's#/.*##g')"
+		else
+			remote_source="$remote_branch"
+			remote_branch="$remote_branch/master"
+		fi
+		;;
+	0)
+		git_remote_source="$(dirname "$(readlink "$0")")/git-remote-source"
+		remote_branch="$("$git_remote_source")"
+		remote_source="$(echo "$remote_branch" | sed -e 's#/.*##')"
+		;;
+	*)
+		usage
+		;;
+esac
 
 if (( $stash == 1 )); then
 	old_stash_count=$(git stash list | wc -l)
@@ -66,12 +85,16 @@ else
 	stat "To stash before and after syncing, call git sync --stash"
 fi
 
-green Pulling
-git pull "$@"
+green Fetching
+git fetch "$remote_source"
+stat
+
+green Rebasing
+git rebase "$remote_branch"
 stat
 
 green Pushing
-git push "$@"
+git push "$remote_source"
 stat
 
 if (( $stash == 1 )); then
