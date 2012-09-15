@@ -34,6 +34,7 @@ assert_clear_status() {
 		echo
 		git status
 		echo
+		exit 403
 	fi
 }
 

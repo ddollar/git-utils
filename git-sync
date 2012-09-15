@@ -16,10 +16,14 @@ usage() {
 }
 
 stash=0
+rebase=''
 while [[ "$1" == -* ]]; do
 	case "$1" in
 		--stash)
 			stash=1
+			;;
+		--rebase)
+			rebase='--rebase'
 			;;
 		*)
 			usage
@@ -46,16 +50,12 @@ else
 	assert_clear_status "To stash before and after syncing, call git sync --stash"
 fi
 
-green Fetching
-git fetch "$remote_source"
-assert_clear_status
-
-green Rebasing
-git rebase "$remote_branch"
+green Fetching $rebase
+git pull $rebase "$source" || exit 1
 assert_clear_status
 
 green Pushing
-git push "$remote_source"
+git push "$source"
 assert_clear_status
 
 if (( $stash == 1 )); then
