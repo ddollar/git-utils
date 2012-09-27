@@ -50,8 +50,8 @@ else
 	assert_clear_status "To stash before and after syncing, call git sync --stash"
 fi
 
-green Fetching $rebase
-git pull $rebase "$source" || exit 1
+green Pulling $source $rebase
+git pull $rebase "$source" "${branch/*\//}" || exit 1
 assert_clear_status
 
 green Pushing
