@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "$(dirname "$(readlink "$0")")/bash-functions"
+. "$(dirname "$(readlink -m "$0")")/bash-functions"
 parse_source_args "$@"
 
 echo "To: $branch"

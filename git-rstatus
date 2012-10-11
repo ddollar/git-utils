@@ -1,6 +1,7 @@
 #!/bin/bash
 
-. "$(dirname "$(readlink "$0")")/bash-functions"
+dir="$(dirname "$(readlink -m "$0")")"
+. "$dir/bash-functions"
 
 usage() {
 	blue "Usage:"
@@ -47,9 +48,9 @@ if (( "$fetch" == 1 )); then
 fi
 
 green "Incoming changes:"
-git --no-pager incoming "$branch"
+"$dir/git-incoming" "$branch"
 
 green "Outgoing changes:"
-git --no-pager outgoing "$branch"
+"$dir/git-outgoing" "$branch"
 
 echo
