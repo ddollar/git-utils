@@ -48,9 +48,9 @@ if (( "$fetch" == 1 )); then
 fi
 
 green "Incoming changes:"
-"$dir/git-incoming" "$branch"
+"$dir/git-incoming" --no-pager "$branch"
 
 green "Outgoing changes:"
-"$dir/git-outgoing" "$branch"
+"$dir/git-outgoing" --no-pager "$branch"
 
 echo

@@ -1,9 +1,15 @@
 #!/bin/bash
 
+git_options=''
+while [[ "$1" == -* ]]; do
+	git_options="$git_options$1 "
+	shift
+done
+
 . "$(dirname "$(readlink -m "$0")")/bash-functions"
 parse_source_args "$@"
 
 echo "From: $branch"
 echo ""
 
-git log ..$branch --oneline
+git $git_options log "..$branch" --oneline
