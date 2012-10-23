@@ -5,12 +5,19 @@
 usage() {
 	blue "Usage"
 	cat <<-USAGE
-		  $0 [--stash] [repo[/branch]]
+		  $0 [options] [repo[/branch]]
 		    Fetch, rebase, and push.
-		  --stash
-		    Saves the current status in stash before syncing, and pops afterwards.
+		    
 		  repo/branch
 		    Specifies where to fetch from, pull to, and what to merge with. 
+		  
+		  options
+		    --stash
+		      Saves the current status in stash before syncing, and pops afterwards.
+		    
+		    --rebase
+		      Uses pull --rebase instead of merge
+
 	USAGE
 	exit 1
 }
@@ -50,12 +57,14 @@ else
 	assert_clear_status "To stash before and after syncing, call git sync --stash"
 fi
 
+branch="${branch/*\//}"
+
 green Pulling $source $rebase
-git pull $rebase "$source" "${branch/*\//}" || exit 1
+git pull $rebase "$source" "$branch" || exit 1
 assert_clear_status
 
 green Pushing
-git push "$source"
+git push "$source" HEAD:"$branch"
 assert_clear_status
 
 if $stash; then
