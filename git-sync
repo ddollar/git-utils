@@ -15,12 +15,12 @@ usage() {
 	exit 1
 }
 
-stash=0
+stash=false
 rebase=''
 while [[ "$1" == -* ]]; do
 	case "$1" in
 		--stash)
-			stash=1
+			stash=true
 			;;
 		--rebase)
 			rebase='--rebase'
@@ -35,7 +35,7 @@ done
 parse_source_args "$@"
 
 
-if (( $stash == 1 )); then
+if $stash; then
 	old_stash_count=$(git stash list | wc -l)
 
 	green Stashing
@@ -58,7 +58,7 @@ green Pushing
 git push "$source"
 assert_clear_status
 
-if (( $stash == 1 )); then
+if $stash; then
 	green Popping the stash
 	git stash pop
 fi
