@@ -82,6 +82,11 @@ def commits_between from, to
   end
 end
 
+def clean_diff(from, to)
+  system "git diff #{from} #{to} --exit-code >/dev/null 2>&1"
+  return $?.exitstatus.zero?
+end
+
 begin
   $config = YAML::load_file(CONFIG_FILENAME)
 rescue
@@ -142,10 +147,11 @@ repo = {
 }
 
 def branch_sync_status(local, remote, show_outgoing=true, show_incoming=true, good="in sync", bad="out of sync")
+  clean  = clean_diff(local[:rev], remote[:rev])
   outgoing = show_outgoing ? commits_between(remote[:rev], local[:rev])  : []
   incoming = show_incoming ? commits_between(local[:rev],  remote[:rev]) : []
 
-  sync = (incoming.length == 0 && outgoing.length == 0)
+  sync = (clean || (incoming.length == 0 && outgoing.length == 0))
 
   verb = case
     when incoming.length > 0 &&
@@ -156,8 +162,11 @@ def branch_sync_status(local, remote, show_outgoing=true, show_incoming=true, go
   end
 
   cputs sync ? "[x] #{good}" : "[ ] #{bad}"
-  incoming.each { |c| cputs "    &|8&|3<&|9 #{c}" }
-  outgoing.each { |c| cputs "    &|8&|3>&|9 #{c}" }
+
+  if !sync
+    incoming.each { |c| cputs "    &|8&|3<&|9 #{c}" }
+    outgoing.each { |c| cputs "    &|8&|3>&|9 #{c}" }
+  end
 end
 
 def name(branch)
