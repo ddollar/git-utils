@@ -96,9 +96,9 @@ ensure
   $config['alternate_branches'] ||= {}
 end
 
-current_branch = run_command("git branch").split("\n").detect { |l| l[0,1] == '*' }[2..-1]
+current_branch = run_command("git branch").split($/).detect { |l| l[0,1] == '*' }[2..-1]
 
-$branches = run_command("git for-each-ref refs/heads").split("\n").inject({}) do |hash, line|
+$branches = run_command("git for-each-ref refs/heads").split($/).inject({}) do |hash, line|
   parts   = line.split(' ')
   name    = parts.last.split('/')[2..-1].join('/')
   rev     = parts.first
@@ -118,7 +118,7 @@ $branches = run_command("git for-each-ref refs/heads").split("\n").inject({}) do
   }})
 end
 
-$remotes = run_command("git for-each-ref refs/remotes").split("\n").inject({}) do |hash, line|
+$remotes = run_command("git for-each-ref refs/remotes").split($/).inject({}) do |hash, line|
   parts     = line.split(' ')
   ref_parts = parts.last.split('/')
   name      = ref_parts.pop
