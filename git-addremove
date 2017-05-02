@@ -3,4 +3,4 @@
 FILES=${@:-:/}
 
 git add -A $FILES
-git ls-files --deleted -z $FILES | xargs -0 git rm
+git ls-files --deleted -z $FILES | xargs -0 --no-run-if-empty git rm

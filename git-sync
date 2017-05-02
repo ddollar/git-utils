@@ -1,0 +1,75 @@
+#!/bin/bash
+
+. "$(dirname "$(readlink -m "$0")")/bash-functions"
+
+usage() {
+	blue "Usage"
+	cat <<-USAGE
+		  $0 [options] [repo[/branch]]
+		    Fetch, rebase, and push.
+		    
+		  repo/branch
+		    Specifies where to fetch from, pull to, and what to merge with. 
+		  
+		  options
+		    --stash
+		      Saves the current status in stash before syncing, and pops afterwards.
+		    
+		    --rebase
+		      Uses pull --rebase instead of merge
+
+	USAGE
+	exit 1
+}
+
+stash=false
+rebase=''
+while [[ "$1" == -* ]]; do
+	case "$1" in
+		--stash)
+			stash=true
+			;;
+		--rebase)
+			rebase='--rebase'
+			;;
+		*)
+			usage
+			;;
+	esac
+	shift
+done
+
+parse_source_args "$@"
+
+
+if $stash; then
+	old_stash_count=$(git stash list | wc -l)
+
+	green Stashing
+	git stash save
+
+	new_stash_count=$(git stash list | wc -l)
+	if (( $new_stash_count == $old_stash_count )); then
+		# The stash save didn't do anything; turn off stashing so we don't pop anything either.
+		stash=0
+	fi
+else
+	assert_clear_status "To stash before and after syncing, call git sync --stash"
+fi
+
+branch="${branch/*\//}"
+
+green Pulling $source $rebase
+git pull $rebase "$source" "$branch" || exit 1
+assert_clear_status
+
+green Pushing
+git push "$source" HEAD:"$branch"
+assert_clear_status
+
+if $stash; then
+	green Popping the stash
+	git stash pop
+fi
+
+echo

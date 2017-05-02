@@ -1,0 +1,77 @@
+#!/bin/bash
+
+colortitle() {
+	# Usage: colortitle ansi_color text
+	# Writes a title with the specified ANSI color, in bold, with a blank line before it
+
+	local color="$1"
+	shift
+
+	echo
+	echo -e "\033[$color;1m$*\033[0m"
+}
+red() { colortitle 31 "$@"; }
+green() { colortitle 32 "$@"; }
+blue() { colortitle 34 "$@"; }
+
+assert_git_repo() {
+	# Asserts the current folder is a git repository.
+
+	git branch >& /dev/null
+	if (( $? != 0 )); then
+		blue Not a git repo.
+		exit 401
+	fi
+}
+
+assert_clear_status() {
+	# Asserts there are no current changes, i.e. git status returns nothing.
+
+	local status="$(git status --porcelain 2> /dev/null)"
+	if (( $? != 0 )) || [[ "$status" != "" ]]; then
+		red "Stopping due to unclear status"
+		[[ $# != 0 ]] && echo "$*"
+		echo
+		git status
+		echo
+		exit 403
+	fi
+}
+
+parse_source_args() {
+	# Sets the globals $source and $branch according to the current branch or given parameters.
+
+	assert_git_repo
+
+	if (( $# > 1 )); then
+		echo Too many command-line parameters.
+		[[ "$(type -t usage)" == "function" ]] && usage
+		exit 402
+	fi
+
+	local current_branch="$(git branch | grep '^*' | sed 's#\* ##')"
+	if [[ "$current_branch" == "" ]]; then
+		echo Cannot determine current branch
+		exit 501
+	fi
+
+	case "$1" in
+		'')
+			source="$(git config branch.${current_branch}.remote)"
+			if [[ "$source" == "" ]]; then
+				echo Cannot determine tracking repository
+				exit 502
+			fi
+			local remote_branch="$(git config branch.${current_branch}.merge | sed -e 's#^[^/]*/[^/]*/##')"
+			branch="$source/$remote_branch"
+			;;
+		*/*)
+			branch="$1"
+			source="$(echo "$1" | sed -e 's#^remote##' -e 's#/.*##')"
+			;;
+		*)
+			branch="$1/master"
+			source="$1"
+			;;
+	esac
+}
