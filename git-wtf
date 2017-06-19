@@ -65,20 +65,22 @@ def run_command(command)
 end
 
 def commits_between from, to
-  commits = run_command(%{ git log --pretty=format:"%h|%ae|%s" #{from}..#{to} }).split(/[\r\n]+/).map do |raw_commit|
+  commits = run_command(%{ git log --pretty=format:"%ar|%h|%ae|%s" #{from}..#{to} }).split(/[\r\n]+/).map do |raw_commit|
     raw_commit_parts = raw_commit.split('|')
 
     {
+      :date    => raw_commit_parts.shift,
       :hash    => raw_commit_parts.shift,
       :author  => raw_commit_parts.shift.split('@').first,
       :message => raw_commit_parts.join('|')
     }
   end
-  
+
+  max_date_size = commits.map { |c| c[:date].length }.sort.last
   max_author_size = commits.map { |c| c[:author].length }.sort.last
-  
+
   commits.map do |commit|
-    "[&|2%s&|9] &|8&|4%#{max_author_size}s&|9 %s" % [commit[:hash], commit[:author], commit[:message]]
+    "&|2%s&|9 &|6%#{max_date_size}s&|9 &|8&|4%#{max_author_size}s&|9 %s" % [commit[:hash], commit[:date], commit[:author], commit[:message]]
   end
 end
 
@@ -131,7 +133,7 @@ end
 
 $branches.each do |name, branch|
   $branches[name][:parent] = begin
-    merge  = branch[:merge] 
+    merge  = branch[:merge]
     remote = merge[:remote] == '.' ? $branches : $remotes[merge[:remote]]
     remote ? remote[merge[:branch]] : nil
   end
