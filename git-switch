@@ -2,6 +2,7 @@
 
 if [ "${1}" == "" ]; then
   echo "git-switch <branch> [--all]"
+  exit 1
 fi
 
 
@@ -24,5 +25,5 @@ fi
 AUTOSTASH=$(git stash list | grep "${NEW_BRANCH}: autostash" | tail -n 1 | cut -d":" -f1)
 
 if [ "${AUTOSTASH}" != "" ]; then
-  git stash apply ${AUTOSTASH} && git stash drop ${AUTOSTASH}
+  git stash apply --index ${AUTOSTASH} && git stash drop ${AUTOSTASH}
 fi
