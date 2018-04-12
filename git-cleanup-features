@@ -6,8 +6,6 @@ die() { echo $*; exit 1; }
 
 [ -z "$(git status --porcelain)" ] || die "must have clean git working tree"
 
-git for-each-ref --format='%(refname:strip=2)' refs/heads/ | while read branch; do
-  if [ -z "$(git diff master..$branch --exit-code)" ] && [ "$branch" != "master" ]; then
-    git branch -D $branch
-  fi
+git branch --merged master --format "%(refname:short)" | grep -v "^master$" | while read branch; do
+  git branch -D $branch
 done
