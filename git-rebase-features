@@ -24,4 +24,4 @@ git for-each-ref --format='%(refname:strip=2)' refs/heads/ | while read branch; 
   git rebase master >/dev/null
 done
 
-git checkout master
+git checkout master >/dev/null
