@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -7,11 +7,21 @@ die() { echo $*; exit 1; }
 [ -z "$(git status --porcelain)" ] || die "must have clean git working tree"
 
 git for-each-ref --format='%(refname:strip=2)' refs/heads/ | while read branch; do
-  if [ ! -z "$(git log master..$branch)" ] && [ "$branch" != "master" ]; then
-    echo "rebasing: $branch"
-    git checkout $branch >/dev/null 2>&1
-    git rebase master >/dev/null
+  if [ "$branch" == "master" ]; then
+    continue
   fi
+
+  echo -n "$branch: "
+
+  if [ "$(git for-each-ref --format='%(upstream:short)' refs/heads/$branch)" != "master" ]; then
+    echo "not tracking master"
+    continue
+  fi
+
+  echo "rebasing"
+
+  git checkout $branch >/dev/null 2>&1
+  git rebase master >/dev/null
 done
 
 git checkout master
