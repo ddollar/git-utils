@@ -1,3 +1,3 @@
 #!/bin/sh
-git addremove
+git add .
 git commit -m "wip"
