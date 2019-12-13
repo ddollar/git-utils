@@ -1,11 +1,33 @@
-#!/bin/sh
-
-set -e
+#!/bin/bash
 
 die() { echo $*; exit 1; }
 
 [ -z "$(git status --porcelain)" ] || die "must have clean git working tree"
 
-git branch --merged master --format "%(refname:short)" | grep -v "^master$" | while read branch; do
-  git branch -D $branch
+git for-each-ref --format='%(refname:strip=2)' refs/heads/ | while read branch; do
+  if [ "$branch" == "master" ]; then
+    continue
+  fi
+
+  echo -n "$branch: "
+
+  if [ "$(git for-each-ref --format='%(upstream:short)' refs/heads/$branch)" != "master" ]; then
+    echo "not tracking master"
+    continue
+  fi
+
+  git merge --no-commit --no-ff $branch >/dev/null 2>&1
+
+  if [[ $(git status --short) == "" ]]; then
+    echo "already merged"
+    #git branch -D $branch
+  else
+    echo "not merged"
+  fi
+
+  git merge --abort
 done
+
+# git branch --merged master --format "%(refname:short)" | grep -v "^master$" | while read branch; do
+#   git branch -D $branch
+# done
