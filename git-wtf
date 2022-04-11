@@ -17,7 +17,8 @@ end
 class Numeric
   def pluralize(s)
     "#{self} #{s}" + (self != 1 ? 's' : '')
-  end end
+  end
+end
 
 class Hash
   def leaves
@@ -160,12 +161,6 @@ def branch_sync_status(local, remote, show_outgoing = true, show_incoming = true
 
   sync = (clean || (incoming.length == 0 && outgoing.length == 0))
 
-  verb = if incoming.length > 0 &&
-            outgoing.length > 0 then 'merge'
-         elsif incoming.length > 0 then 'pull'
-         elsif outgoing.length > 0 then 'push'
-         end
-
   cputs sync ? "[x] #{good}" : "[ ] #{bad}"
 
   unless sync
@@ -211,7 +206,6 @@ if repo[:versions].length > 0
 end
 
 if repo[:alts].length > 0
-  master = repo[:master]
   cputs 'Alternate branches:'
   repo[:alts].each do |branch|
     parent = $branches[branch[:alt]]
