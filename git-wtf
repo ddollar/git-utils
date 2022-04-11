@@ -3,18 +3,21 @@
 $debug = false
 
 require 'yaml'
-CONFIG_FILENAME = ".git-wtf"
+CONFIG_FILENAME = '.git-wtf'.freeze
 
 begin
   require 'rubygems'
   require 'term/ansicolor'
-  HAS_COLOR=true
+  HAS_COLOR = true
   include Term::ANSIColor
 rescue LoadError
-  HAS_COLOR=false
+  HAS_COLOR = false
 end
 
-class Numeric; def pluralize s; "#{to_s} #{s}" + (self != 1 ? "s" : "") end end
+class Numeric
+  def pluralize(s)
+    "#{self} #{s}" + (self != 1 ? 's' : '')
+  end end
 
 class Hash
   def leaves
@@ -23,25 +26,27 @@ class Hash
   end
 end
 
-def die s
-  $stderr.puts "Error: #{s}"
+def die(s)
+  warn "Error: #{s}"
   exit(-1)
 end
 
-COLOR_ATTRIBUTES = {
-  0 => black,
-  1 => red,
-  2 => green,
-  3 => yellow,
-  4 => blue,
-  5 => magenta,
-  6 => cyan,
-  7 => dark,
-  8 => bold,
-  9 => reset
-} if HAS_COLOR
+if HAS_COLOR
+  COLOR_ATTRIBUTES = {
+    0 => black,
+    1 => red,
+    2 => green,
+    3 => yellow,
+    4 => blue,
+    5 => magenta,
+    6 => cyan,
+    7 => dark,
+    8 => bold,
+    9 => reset
+  }.freeze
+end
 
-def cputs(string='')
+def cputs(string = '')
   if HAS_COLOR
     COLOR_ATTRIBUTES.each { |num, color| string.gsub!("&|#{num}", color) }
   else
@@ -54,81 +59,81 @@ def run_command(command)
   output = IO.popen(command, 'r').read
 
   if $debug
-    cputs "-- begin run_command --"
+    cputs '-- begin run_command --'
     cputs "executing: #{command}"
-    cputs "output:"
+    cputs 'output:'
     cputs output
-    cputs "-- end run_command --"
+    cputs '-- end run_command --'
   end
 
   output
 end
 
-def commits_between from, to
-  commits = run_command(%{ git log --pretty=format:"%ar|%h|%ae|%s" #{from}..#{to} }).split(/[\r\n]+/).map do |raw_commit|
+def commits_between(from, to)
+  commits = run_command(%( git log --pretty=format:"%ar|%h|%ae|%s" #{from}..#{to} )).split(/[\r\n]+/).map do |raw_commit|
     raw_commit_parts = raw_commit.split('|')
 
     {
-      :date    => raw_commit_parts.shift,
-      :hash    => raw_commit_parts.shift,
-      :author  => raw_commit_parts.shift.split('@').first,
-      :message => raw_commit_parts.join('|')
+      date: raw_commit_parts.shift,
+      hash: raw_commit_parts.shift,
+      author: raw_commit_parts.shift.split('@').first,
+      message: raw_commit_parts.join('|')
     }
   end
 
-  max_date_size = commits.map { |c| c[:date].length }.sort.last
-  max_author_size = commits.map { |c| c[:author].length }.sort.last
+  max_date_size = commits.map { |c| c[:date].length }.max
+  max_author_size = commits.map { |c| c[:author].length }.max
 
   commits.map do |commit|
-    "&|2%s&|9 &|6%#{max_date_size}s&|9 &|8&|4%#{max_author_size}s&|9 %s" % [commit[:hash], commit[:date], commit[:author], commit[:message]]
+    format("&|2%s&|9 &|6%#{max_date_size}s&|9 &|8&|4%#{max_author_size}s&|9 %s", commit[:hash], commit[:date],
+           commit[:author], commit[:message])
   end
 end
 
 def clean_diff(from, to)
   system "git diff #{from} #{to} --exit-code >/dev/null 2>&1"
-  return $?.exitstatus.zero?
+  $?.exitstatus.zero?
 end
 
 begin
-  $config = YAML::load_file(CONFIG_FILENAME)
-rescue
+  $config = YAML.load_file(CONFIG_FILENAME)
+rescue StandardError
   $config = {}
 ensure
   $config['version_branches']   ||= []
   $config['alternate_branches'] ||= {}
 end
 
-current_branch = run_command("git branch").split("\n").detect { |l| l[0,1] == '*' }[2..-1]
+current_branch = run_command('git branch').split("\n").detect { |l| l[0, 1] == '*' }[2..-1]
 
-$branches = run_command("git for-each-ref refs/heads").split("\n").inject({}) do |hash, line|
+$branches = run_command('git for-each-ref refs/heads').split("\n").inject({}) do |hash, line|
   parts   = line.split(' ')
   name    = parts.last.split('/')[2..-1].join('/')
   rev     = parts.first
   current = (name == current_branch)
-  version = $config["version_branches"].include?(name)
-  alt     = $config["alternate_branches"][name]
+  version = $config['version_branches'].include?(name)
+  alt     = $config['alternate_branches'][name]
   remote  = run_command("git config --get branch.#{name}.remote").chomp
   merge   = run_command("git config --get branch.#{name}.merge").chomp.split('/').last
 
   hash.update({ name => {
-    :name    => name,
-    :rev     => rev,
-    :current => current,
-    :version => version,
-    :alt     => alt,
-    :merge   => { :remote => remote, :branch => merge }
-  }})
+                name: name,
+                rev: rev,
+                current: current,
+                version: version,
+                alt: alt,
+                merge: { remote: remote, branch: merge }
+              } })
 end
 
-$remotes = run_command("git for-each-ref refs/remotes").split("\n").inject({}) do |hash, line|
+$remotes = run_command('git for-each-ref refs/remotes').split("\n").each_with_object({}) do |line, hash|
   parts     = line.split(' ')
   ref_parts = parts.last.split('/')
   name      = ref_parts.pop
   remote    = ref_parts.pop
   rev       = parts.first
   hash[remote] ||= {}
-  hash[remote][name] = { :name => name, :remote => remote, :rev => rev }
-  hash
+  hash[remote][name] = { name: name, remote: remote, rev: rev }
 end
 
 $branches.each do |name, branch|
@@ -140,32 +145,30 @@ $branches.each do |name, branch|
 end
 
 repo = {
-  :master   => ($branches.values + ($remotes['origin'] || {}).values).detect { |b| b[:name] == 'master' },
-  :current  => $branches.values.detect { |b| b[:current] },
-  :versions => $branches.values.select { |b| b[:version] },
-  :alts     => $branches.values.select { |b| b[:alt]     },
-  :features => $branches.values.select { |b| !(b[:version] || b[:alt] || b[:name] == 'master') },
-  :remotes  => $remotes
+  master: ($branches.values + ($remotes['origin'] || {}).values).detect { |b| b[:name] == 'master' },
+  current: $branches.values.detect { |b| b[:current] },
+  versions: $branches.values.select { |b| b[:version] },
+  alts: $branches.values.select { |b| b[:alt] },
+  features: $branches.values.select { |b| !(b[:version] || b[:alt] || b[:name] == 'master') },
+  remotes: $remotes
 }
 
-def branch_sync_status(local, remote, show_outgoing=true, show_incoming=true, good="in sync", bad="out of sync")
-  clean  = clean_diff(local[:rev], remote[:rev])
+def branch_sync_status(local, remote, show_outgoing = true, show_incoming = true, good = 'in sync', bad = 'out of sync')
+  clean = clean_diff(local[:rev], remote[:rev])
   outgoing = show_outgoing ? commits_between(remote[:rev], local[:rev])  : []
   incoming = show_incoming ? commits_between(local[:rev],  remote[:rev]) : []
 
   sync = (clean || (incoming.length == 0 && outgoing.length == 0))
 
-  verb = case
-    when incoming.length > 0 &&
-         outgoing.length > 0 then 'merge'
-    when incoming.length > 0 then 'pull'
-    when outgoing.length > 0 then 'push'
-    else nil
-  end
+  verb = if incoming.length > 0 &&
+            outgoing.length > 0 then 'merge'
+         elsif incoming.length > 0 then 'pull'
+         elsif outgoing.length > 0 then 'push'
+         end
 
   cputs sync ? "[x] #{good}" : "[ ] #{bad}"
 
-  if !sync
+  unless sync
     incoming.each { |c| cputs "    &|8&|3<&|9 #{c}" }
     outgoing.each { |c| cputs "    &|8&|3>&|9 #{c}" }
   end
@@ -175,12 +178,15 @@ def name(branch)
   if $remotes.leaves.include?(branch)
     "#{branch[:remote]}/#{branch[:name]}"
   else
-    "#{branch[:name]}"
+    (branch[:name]).to_s
   end
 end
 
 cputs "Local Branch: #{name(repo[:current])}"
-branch_sync_status(repo[:current], repo[:current][:parent], true, true, "in sync with remote", "out of sync with remote (#{repo[:current][:parent][:remote]}/#{repo[:current][:parent][:name]})") if repo[:current][:parent]
+if repo[:current][:parent]
+  branch_sync_status(repo[:current], repo[:current][:parent], true, true, 'in sync with remote',
+                     "out of sync with remote (#{repo[:current][:parent][:remote]}/#{repo[:current][:parent][:name]})")
+end
 cputs
 
 # if repo[:versions].include?(repo[:current])
@@ -196,26 +202,29 @@ cputs
 # end
 
 if repo[:versions].length > 0
-  cputs "Version branches:"
+  cputs 'Version branches:'
   repo[:versions].each do |branch|
-    branch_sync_status(repo[:master], branch, false, true, "#{branch[:name]} is merged in to master", "#{branch[:name]} needs to be merged in to master")
+    branch_sync_status(repo[:master], branch, false, true, "#{branch[:name]} is merged in to master",
+                       "#{branch[:name]} needs to be merged in to master")
   end
   cputs
 end
 
 if repo[:alts].length > 0
   master = repo[:master]
-  cputs "Alternate branches:"
+  cputs 'Alternate branches:'
   repo[:alts].each do |branch|
     parent = $branches[branch[:alt]]
-    branch_sync_status(parent, branch, true, false, "#{branch[:name]} is updated from #{parent[:name]}", "#{branch[:name]} needs to be updated from #{parent[:name]}")
+    branch_sync_status(parent, branch, true, false, "#{branch[:name]} is updated from #{parent[:name]}",
+                       "#{branch[:name]} needs to be updated from #{parent[:name]}")
   end
   cputs
 end
 
 if repo[:features].length > 0
-  cputs "Feature branches:"
+  cputs 'Feature branches:'
   repo[:features].each do |branch|
-    branch_sync_status(repo[:current], branch, false, true, "#{branch[:name]} is merged in", "#{branch[:name]} needs to be merged in")
+    branch_sync_status(repo[:current], branch, false, true, "#{branch[:name]} is merged in",
+                       "#{branch[:name]} needs to be merged in")
   end
 end
