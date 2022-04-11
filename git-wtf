@@ -146,11 +146,11 @@ $branches.each do |name, branch|
 end
 
 repo = {
-  master: ($branches.values + ($remotes['origin'] || {}).values).detect { |b| b[:name] == 'master' },
+  main: ($branches.values + ($remotes['origin'] || {}).values).detect { |b| %w[main master].include?(b[:name]) },
   current: $branches.values.detect { |b| b[:current] },
   versions: $branches.values.select { |b| b[:version] },
   alts: $branches.values.select { |b| b[:alt] },
-  features: $branches.values.select { |b| !(b[:version] || b[:alt] || b[:name] == 'master') },
+  features: $branches.values.select { |b| !(b[:version] || b[:alt] || %w[main master].include?(b[:name])) },
   remotes: $remotes
 }
 
