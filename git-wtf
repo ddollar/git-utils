@@ -184,23 +184,11 @@ if repo[:current][:parent]
 end
 cputs
 
-# if repo[:versions].include?(repo[:current])
-#   master = repo[:master]
-#   cputs "Master Branch: #{name(master)}"
-#   branch_sync_status(repo[:current], master, true, false, "in sync", "#{name(repo[:current])} needs to be merged into master")
-#   cputs
-# elsif repo[:alts].include?(repo[:current])
-#   master = repo[:master]
-#   cputs "Master Branch: #{name(master)}"
-#   branch_sync_status(repo[:current], master, true, false, "in sync", "#{name(repo[:current])} needs to be merged into master")
-#   cputs
-# end
-
 if repo[:versions].length > 0
   cputs 'Version branches:'
   repo[:versions].each do |branch|
-    branch_sync_status(repo[:master], branch, false, true, "#{branch[:name]} is merged in to master",
-                       "#{branch[:name]} needs to be merged in to master")
+    branch_sync_status(repo[:main], branch, false, true, "#{branch[:name]} is merged in to main",
+                       "#{branch[:name]} needs to be merged in to main")
   end
   cputs
 end

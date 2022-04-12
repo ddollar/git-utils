@@ -7,7 +7,6 @@ if [ "$branch" == "HEAD" ]; then
   exit 1
 fi
 
-remote=$(git config branch.${branch}.remote)
 upstream=$(git config branch.${branch}.merge)
 
 if [ "${1}" != "" ]; then

@@ -1,19 +1,16 @@
-Many of these have been grabbed from various sources around the interwebs. I unfortunately was terrible about
-keeping track of where they came from. If I have one of your scripts in this collection and you would like
-credit (or removal) just contact me at ddollar@gmail.com
+Many of these have been grabbed from various sources around the interwebs. Credit is given where known, but
+unfortunately I wasn't always great at keeping track.
 
-git-addremove         # add/remove all changes from the index, similar to hg addremove
-git-incoming          # shows incoming commits from the tracked (or specified) branch
-git-index             # show the current staging area
-git-last              # git last 3 (show the last 3 commits)
-git-outgoing          # show outgoing commits to the tracked (or specified) branch
-git-patch             # format a patch and put it into ~/Documents/Patches/<Project>/<branch>.patch
-git-pull-request      # manipulate github pull requests
-git-rank-contributors # rank all project contributors
-git-rm-conflicts      # clean up all merge conflicts
-git-switch            # like checkout, but with auto-stash
-git-wip               # store a current "work in progress" commit
-git-unwip             # break a work in progress commit bringing the changes back to unstaged
-git-wtf               # show the current status of your git repository, including feature branches
+If I have one of your scripts in this collection and you would like credit (or removal) please open an issue.
 
-Many of these scripts come from http://github.com/jwiegley/git-scripts
+| script                 | description                                             |
+| ---------------------- | ------------------------------------------------------- |
+| `git-cleanup-features` | clean up feature branches that have already been merged |
+| `git-incoming`         | show commits that are missing on the local branch       |
+| `git-index`            | show the staged diff                                    |
+| `git-last`             | show the last N commits                                 |
+| `git-outgoing`         | show commits that are missing on the remote branch      |
+| `git-rebase-features`  | rebase feature branches against `main`                  |
+| `git-unwip`            | rewind the last commit back into the index              |
+| `git-wip`              | make a wip commit of all outstanding changes            |
+| `git-wtf`              | show status of all branches                             |
