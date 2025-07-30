@@ -1,0 +1,70 @@
+#!/usr/bin/env ruby
+
+require 'fileutils'
+
+GITIGNORE_PATH = File.expand_path('~/.gitignore')
+HOME_DIR = File.expand_path('~')
+
+
+# def pattern_matches?(pattern)
+#   # Remove comments and whitespace
+#   pattern = pattern.strip
+#   return false if pattern.empty? || pattern.start_with?('#')
+
+#   # Convert gitignore pattern to glob
+#   glob = pattern
+#   glob = File.join(HOME_DIR, glob) unless glob.start_with?('/')
+#   matches = Dir.glob(glob, File::FNM_DOTMATCH) - [".", ".."]
+#   !matches.empty?
+# end
+
+def prune_line?(line)
+	return false if line.strip.empty? 
+	return false if line.start_with?("#")
+  return false unless line.start_with?("/")
+
+  line.strip!
+  line.sub!(/\A!/, "")        # remove leading !
+
+	matches = Dir.glob(File.join(HOME_DIR, line.strip.sub(/\A!/, "")), File::FNM_DOTMATCH) - [".", ".."]
+
+  return false unless matches.empty?
+
+  puts "pruning #{line}"
+  
+  return true
+end
+
+unless File.exist?(GITIGNORE_PATH)
+  puts "No .gitignore found at #{GITIGNORE_PATH}"
+  exit 1
+end
+
+kept = []
+
+File.readlines(GITIGNORE_PATH).each do |line|
+  next if prune_line?(line)
+  kept.push(line.strip)
+end
+
+File.write(GITIGNORE_PATH, kept.join("\n"))
+
+# lines = File.readlines(GITIGNORE_PATH)
+# kept_lines = lines.select do |line|
+#   stripped = line.strip
+#   if stripped.empty? || stripped.start_with?('#')
+#     true
+#   else
+#     pattern_matches?(stripped)
+#   end
+# end
+
+# if kept_lines == lines
+#   puts "No unused patterns found."
+# else
+#   backup = GITIGNORE_PATH + ".bak"
+#   FileUtils.cp(GITIGNORE_PATH, backup)
+#   File.write(GITIGNORE_PATH, kept_lines.join)
+#   puts "Pruned unused patterns. Backup saved to #{backup}."
+# end
+
