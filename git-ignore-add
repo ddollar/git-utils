@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -e
+
+if [ $# -eq 0 ]; then
+    echo "usage: git-ignore-add <pattern>"
+    echo "adds a pattern to ~/.gitignore in alphabetical order and runs git rm --cached"
+    exit 1
+fi
+
+PATTERN="$1"
+GITIGNORE="$HOME/.gitignore"
+
+if [ ! -f "$GITIGNORE" ]; then
+    echo "creating ~/.gitignore"
+    touch "$GITIGNORE"
+fi
+
+if grep -Fxq "$PATTERN" "$GITIGNORE"; then
+    echo "pattern '$PATTERN' already exists in ~/.gitignore"
+    exit 0
+fi
+
+{
+    cat "$GITIGNORE"
+    echo "$PATTERN"
+} | sort > "$GITIGNORE.new" && mv "$GITIGNORE.new" "$GITIGNORE"
+
+echo "added '$PATTERN' to ~/.gitignore"
+
+if git rev-parse --git-dir > /dev/null 2>&1; then
+    echo "running git rm --cached on '$PATTERN'"
+    git rm --cached -r "$PATTERN" 2>/dev/null || true
+else
+    echo "not in a git repository - skipping git rm --cached"
+fi
