@@ -1,0 +1,53 @@
+#!/bin/bash
+
+die() {
+  echo $*
+  exit 1
+}
+
+[ -z "$(git status --porcelain)" ] || die "must have clean git working tree"
+
+git rev-parse --verify master >/dev/null 2>&1 || die "master branch does not exist"
+git rev-parse --verify main >/dev/null 2>&1 && die "main branch already exists"
+
+get_host_type() {
+  local url="$1"
+  [[ "$url" =~ github\.com ]] && echo "github" && return
+
+  local host=""
+  [[ "$url" =~ ^git@([^:]+): ]] && host="${BASH_REMATCH[1]}"
+  [[ "$url" =~ ^https?://([^/]+) ]] && host="${BASH_REMATCH[1]}"
+
+  [ -n "$host" ] && git config --get "origin.${host}.type" 2>/dev/null || echo "unknown"
+}
+
+update_default_branch() {
+  local remote="$1"
+  local type="$2"
+  local url=$(git remote get-url "$remote")
+
+  case "$type" in
+    github)
+      command -v hub >/dev/null 2>&1 || return
+      [[ "$url" =~ github\.com[:/]([^/]+/[^/]+)(\.git)?$ ]] || return
+      local repo="${BASH_REMATCH[1]%.git}"
+      hub api -X PATCH "repos/$repo" -f default_branch=main >/dev/null 2>&1
+      ;;
+    gitea)
+      command -v tea >/dev/null 2>&1 || return
+      [[ "$url" =~ [:/]([^/]+/[^/]+)(\.git)?$ ]] || return
+      local repo="${BASH_REMATCH[1]%.git}"
+      tea repos edit -R "$repo" --default-branch main >/dev/null 2>&1
+      ;;
+  esac
+}
+
+git branch -m master main
+
+for remote in $(git remote); do
+  git ls-remote --heads "$remote" master 2>/dev/null | grep -q master || continue
+
+  git push -u "$remote" main || continue
+  update_default_branch "$remote" "$(get_host_type "$(git remote get-url "$remote")")"
+  git push "$remote" --delete master 2>/dev/null
+done
